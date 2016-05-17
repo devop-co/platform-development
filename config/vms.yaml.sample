@@ -1,0 +1,76 @@
+---
+auto_network: &auto_network
+    [{ip: 0.0.0.0, auto_network: true}]
+# Puppet installation for Centos 7
+install_puppet: &install_puppet
+  type: shell
+  inline: |
+    if which puppet > /dev/null 2>&1; then
+      echo 'Puppet Installed.'
+    else
+      echo 'Puppet Installation Script' &&\
+      rpm -ivh https://yum.puppetlabs.com/puppetlabs-release-el-7.noarch.rpm
+      yum -y install puppet
+      mkdir -p /etc/puppet/environments/vagrant && \
+      ln -sf /host/hieradata /etc/puppet/environments/vagrant/hieradata
+      systemctl start  puppet.service
+      systemctl enable puppet.service
+    fi
+
+hosts: &hosts
+  type: hosts
+
+puppet_provision: &puppet_provision
+  type: puppet
+  facter: &facter_omnibox
+    organization:  <%= ENV['ORGANIZNATION'] || 'devop-co' %>
+    client: null
+    env: "vagrant"
+    role: "omnibox"
+    environment:  <%= ENV['PUPPET_ENV'] || 'vagrant' %>
+  module_path: "../platform-puppet/modules"
+  manifests_path: "../platform-puppet/manifests"
+  manifest_file: "site.pp"
+  hiera_config_path: '../platform-configs/hiera.yaml'
+  working_directory: "/etc/puppet/environments/vagrant"
+  options: <%= %w(1 true).include?(ENV['DEBUG'])? '--debug' : '' %> --verbose --show_diff  --environment=<%= ENV['PUPPET_ENV'] || 'vagrant' %>  <%= %w(1 true).include?(ENV['TRACE'])? '--trace' : '' %>
+  synced_folder_type: sync_type
+
+provisioners: &provisioners_default
+  - <<: *install_puppet
+  - <<: *hosts
+  - <<: *puppet_provision
+
+multibox: &multibox
+  private_networks: *auto_network
+  roles: t1.micro
+  box: devopco/centos-7-2-min
+  provisioners: *provisioners_default
+
+omnibox: &omnibox
+  name: omnibox
+  private_networks:
+    [ {ip: '192.168.100.100'} ]
+  hostname: "omnibox.dev"
+  roles: single_box
+  box: devopco/centos-7.2-min
+  provisioners: *provisioners_default
+    - <<: *install_puppet
+    - <<: *hosts
+    - <<: *puppet_provision
+
+# Vagrant box configurations (remove sections per use-case)
+vms:
+# Single Machine
+  -
+   <<: *omnibox
+
+# Multiple Machines
+  -
+    name: db
+    hostname: db-devopco.dvp
+    <<: *multibox
+  -
+    name: web
+    hostname: web-devopco.dvp
+    <<: *multibox

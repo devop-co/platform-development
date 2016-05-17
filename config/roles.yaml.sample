@@ -1,0 +1,45 @@
+---
+roles:
+  single_box:
+    virtualbox:
+      auto_nat_dns_proxy: false
+      network:
+        forwarded_port:
+          guest: 5432
+          host: 5433
+      customize: [[modifyvm, !ruby/sym id, '--memory', 4096]]
+      customize: [[modifyvm, !ruby/sym id, '--cpus', 2]]
+      customize: [[modifyvm, !ruby/sym id, '--natdnsproxy1', 'on']]
+      customize: [[modifyvm, !ruby/sym id, --natdnshostresolver1', 'on']]
+
+    synced_folders: &synced_folders
+      - host_path: '.'
+        guest_path: '/vagrant'
+        disabled: true
+      - host_path: '../platform-configs/hieradata'
+        guest_path: '/etc/puppet/environments/<%= ENV['PUPPET_ENV'] || 'vagrant' %>/hieradata'
+        disabled: false
+      - host_path: '.rvm-vagrant-sync'
+        guest_path: '/usr/local/rvm'
+        disabled: false
+        <% apps=Dir.glob(File.join('../','{platform-*}')) %>
+        <% apps.each do |dir| %>
+      - host_path: <%= dir %>
+        <% dir.to_s.slice! "../" %>
+        guest_path: <%= "/data/www/apps/#{dir}/current" %>
+        disabled: false
+        <% end %>
+# We can specify the details of other boxes in different roles
+# Names are arbitrary - below is similar to the smallest box on AWS
+  t1.micro:
+    virtualbox:
+      auto_nat_dns_proxy: false
+      network:
+        forwarded_port:
+          guest: 5432
+          host: 5433
+      customize: [[modifyvm, !ruby/sym id, '--memory', 512]]
+      customize: [[modifyvm, !ruby/sym id, '--cpus', 1]]
+      customize: [[modifyvm, !ruby/sym id, '--natdnsproxy1', 'on']]
+      customize: [[modifyvm, !ruby/sym id, --natdnshostresolver1', 'on']]
+    <<: *synced_folders
