@@ -1,0 +1,86 @@
+---
+private_networks: &private_network_default
+  - {ip: 0.0.0.0, auto_network: true}
+
+install_puppet_centos: &install_puppet_centos
+  type: shell
+  inline: |
+    if which puppet > /dev/null 2>&1; then
+      echo 'Puppet Installed.'
+    else
+      echo 'Puppet Installation Script' &&\
+      rpm -ivh https://yum.puppetlabs.com/puppetlabs-release-el-7.noarch.rpm
+      yum -y install puppet
+      mkdir -p /etc/puppet/environments/vagrant && \
+      ln -sf /host/hieradata /etc/puppet/environments/vagrant/hieradata
+      systemctl start  puppet.service
+      systemctl enable puppet.service
+    fi
+
+hosts: &hosts
+  type: hosts
+
+puppet_provision: &puppet_provision
+  type: puppet
+  facter: &facter
+    organization:  <%= ENV['ORGANIZNATION'] || 'devop-co' %>
+    client: null
+    env: "vagrant"
+    # role: "omnibox"
+    environment:  <%= ENV['PUPPET_ENV'] || 'vagrant' %>
+  module_path: "../platform-puppet/modules"
+  manifests_path: "../platform-puppet/manifests"
+  manifest_file: "site.pp"
+  hiera_config_path: '../platform-configs/hiera.yaml'
+  working_directory: "/etc/puppet/environments/vagrant"
+  options: "<%= %w(1 true).include?(ENV['DEBUG'])? '--debug' : '' %> --verbose --show_diff  --environment=<%= ENV['PUPPET_ENV'] || 'vagrant' %>  <%= %w(1 true).include?(ENV['TRACE'])? '--trace' : '' %>"
+  # You have the optoin of setting sync_type for
+  # synced_folder_type:
+  # Options for types include rsync, nfs, smb
+  # View the documentation https://www.vagrantup.com/docs/synced-folders/
+
+login_as_deploy: &login_as_deploy
+  type: shell
+  inline: |
+    if [ ! -f /home/vagrant/.login_as_deploy ] && id -u "deploy" >/dev/null 2>&1; then
+      echo '
+        setfacl -m deploy:x $(dirname "$SSH_AUTH_SOCK")
+        setfacl -m deploy:rwx "$SSH_AUTH_SOCK"web
+        sudo -E su deploy
+      ' > /home/vagrant/.login_as_deploy
+      chown vagrant:vagrant /home/vagrant/.login_as_deploy
+      echo "source .login_as_deploy" >> /home/vagrant/.bash_profile
+    fi
+vm_default: &vm_default
+  name: default
+  private_networks: *private_network_default
+  hostname: default.lcl
+  roles: default
+  box: devopco/centos-7-2-min
+  provisioners: &provisioners_default
+    - <<: *install_puppet_centos
+    - <<: *hosts
+    - <<: *puppet_provision
+    - <<: *login_as_deploy
+  # <<: *provisioners_default
+
+  # This entry is the default platform-provisioning setup, all apps, 1 box
+vms:
+  -
+    <<: *vm_default
+    name: Gitlab
+    hostname: gitlab.devopco.lcl
+    roles: default
+
+
+# vms:
+#   -
+#     <<: *vm_default
+#     name: web
+#     hostname: web.lcl
+#     roles: cluster
+#   -
+#     <<: *vm_default
+#     name: db
+#     hostname: db.lcl
+#     roles: cluster
