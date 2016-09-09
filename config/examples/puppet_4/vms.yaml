@@ -1,0 +1,64 @@
+---
+private_networks: &private_network_default
+  - {ip: 0.0.0.0, auto_network: true}
+
+install_puppet_centos: &install_puppet_centos
+  type: shell
+  inline: |
+    if which puppet > /dev/null 2>&1; then
+      echo 'Puppet Installed.'
+    else
+      echo 'Puppet Installation Script' &&\
+      rpm -ivh https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm
+      yum -y install puppet
+      mkdir -p /etc/puppetlabs/code/environments/vagrant && \
+      ln -sf /host/hieradata /etc/puppetlabs/code/environments/vagrant/hieradata
+      systemctl start  puppet.service
+      systemctl enable puppet.service
+    fi
+
+hosts: &hosts
+  type: hosts
+
+puppet_provision: &puppet_provision
+  type: puppet
+  facter: &facter
+    env: "vagrant"
+    role: "omnibox"
+    environment:  <%= ENV['PUPPET_ENV'] || 'vagrant' %>
+
+puppet_4: &puppet_4
+  type: shell
+  inline: "puppet apply <%= %w(1 true).include?(ENV['DEBUG'])? '--debug' : '' %> --verbose --show_diff  --environment=<%= ENV['PUPPET_ENV'] || 'vagrant' %>  <%= %w(1 true).include?(ENV['TRACE'])? '--trace' : '' %> --pluginsync --hiera_config /etc/puppetlabs/hiera.yaml  /etc/puppetlabs/environments/vagrant/manifests --environmentpath /etc/puppet/environments"
+
+login_as_deploy: &login_as_deploy
+  type: shell
+  inline: |
+    if [ ! -f /home/vagrant/.login_as_deploy ] && id -u "deploy" >/dev/null 2>&1; then
+      echo '
+        setfacl -m deploy:x $(dirname "$SSH_AUTH_SOCK")
+        setfacl -m deploy:rwx "$SSH_AUTH_SOCK"web
+        sudo -E su deploy
+      ' > /home/vagrant/.login_as_deploy
+      chown vagrant:vagrant /home/vagrant/.login_as_deploy
+      echo "source .login_as_deploy" >> /home/vagrant/.bash_profile
+    fi
+
+vm_default: &vm_default
+  name: default
+  private_networks: *private_network_default
+  hostname: default.lcl
+  roles: default
+  box: devopco/centos-7-2-min
+  provisioners: &provisioners_default
+    - <<: *install_puppet_centos
+    - <<: *hosts
+    - <<: *puppet_4
+    - <<: *login_as_deploy
+
+vms:
+  -
+    <<: *vm_default
+    name: Test
+    hostname: test.example.com
+    roles: default

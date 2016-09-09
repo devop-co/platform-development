@@ -1,0 +1,18 @@
+remote_repo_root: "git@github.com"
+shared:
+  org_root: "devop-co"
+  repos:
+  - platform-configs
+  - platform-puppet
+devop-co:
+  org_root: "devop-co"
+  repos:
+  - platform-sites
+devopnik:
+  org_root: "devopnik"
+  repos:
+  - pckr
+  - devopco
+  - devonyc
+  - devopticon
+  - jobberwalkie
