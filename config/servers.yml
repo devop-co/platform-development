@@ -1,0 +1,48 @@
+---
+:defaults: &defaults
+  :box: "vitals/centos-6.6"
+  :ram: 1024
+  :cpu: 1
+:servers:
+  -
+    <<: *defaults
+    :name: "web"
+    :hostname: "web.devopco.lcl"
+    :ip: "192.168.0.10"
+  -
+    <<: *defaults
+    :name: "web"
+    :hostname: "web"
+    :ip: "192.168.0.11"
+  -
+    <<: *defaults
+    :name: "util"
+    :hostname: "util.devopco.lcl"
+    :ip: "192.168.0.12"
+    :box: "vitals/centos-6.6"
+    :ram: 1024
+    :cpu: 1
+  -
+    <<: *defaults
+    :name: "solr"
+    :hostname: "solr.devopco.lcl"
+    :ip: "192.168.0.13"
+    :box: "vitals/centos-6.6"
+    :ram: 1024
+    :cpu: 1
+  -
+    <<: *defaults
+    :name: "db"
+    :hostname: "db.devopco.lcl"
+    :ip: "192.168.0.14"
+    :box: "vitals/centos-6.6"
+    :ram: 1024
+    :cpu: 1
+  -
+    <<: *defaults
+    :name: "mon"
+    :hostname: "mon.devopco.lcl"
+    :ip: "192.168.0.15"
+    :box: "vitals/centos-6.6"
+    :ram: 1024
+    :cpu: 1
