@@ -1,0 +1,5 @@
+#Script to copy sample files into yaml files
+
+ssh_config="#{ENV['HOME']}/.ssh/config"
+File.file?(ssh_config)
+File.readlines(ssh_config, "\n\n")

@@ -1,48 +1,78 @@
 ---
-:defaults: &defaults
+:ssh_config: &ssh_config
+      :ssh_config:
+        :vars:
+          -
+           :ssh_pub_key: <% = File.readlines("#{Dir.home}/.ssh/vagrant_id_rsa.pub").first.strip %>
+        :inline: |
+          <<-SHELL
+            echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+          SHELL
+:login_as_deploy: &login_as_deploy
+  :inline: |
+    <<-EOF
+      if [ ! -f /home/vagrant/.login_as_deploy ] && id -u "deploy" >/dev/null 2>&1; then
+        echo '
+          setfacl -m deploy:x $(dirname "$SSH_AUTH_SOCK")
+          setfacl -m deploy:rwx "$SSH_AUTH_SOCK"
+          sudo -E su deploy
+        ' > /home/vagrant/.login_as_deploy
+        chown vagrant:vagrant /home/vagrant/.login_as_deploy
+        echo "source .login_as_deploy" >> /home/vagrant/.bash_profile
+      fi
+    EOF
+:provisioners: &provisioners
+  :shell:
+    -
+      <<: *ssh_config
+    -
+      <<: *login_as_deploy
+
+:vm_defaults: &vm_defaults
   :box: "vitals/centos-6.6"
   :ram: 1024
   :cpu: 1
 :servers:
   -
-    <<: *defaults
-    :name: "web"
-    :hostname: "web.devopco.lcl"
-    :ip: "192.168.0.10"
-  -
-    <<: *defaults
-    :name: "web"
-    :hostname: "web"
-    :ip: "192.168.0.11"
-  -
-    <<: *defaults
-    :name: "util"
-    :hostname: "util.devopco.lcl"
-    :ip: "192.168.0.12"
-    :box: "vitals/centos-6.6"
-    :ram: 1024
-    :cpu: 1
-  -
-    <<: *defaults
-    :name: "solr"
-    :hostname: "solr.devopco.lcl"
-    :ip: "192.168.0.13"
-    :box: "vitals/centos-6.6"
-    :ram: 1024
-    :cpu: 1
-  -
-    <<: *defaults
-    :name: "db"
-    :hostname: "db.devopco.lcl"
-    :ip: "192.168.0.14"
-    :box: "vitals/centos-6.6"
-    :ram: 1024
-    :cpu: 1
-  -
-    <<: *defaults
-    :name: "mon"
-    :hostname: "mon.devopco.lcl"
-    :ip: "192.168.0.15"
-    :box: "vitals/centos-6.6"
-    :ram: 1024
-    :cpu: 1
+    <<: *vm_defaults
+    :name: "web01"
+    :hostname: "web01.devopco.lcl"
+    <<: *provisioners
+
+  # -
+  #   <<: *vm_defaults
+  #   :name: "web02"
+  #   :hostname: "web02.devopco.lcl"
+  #   :ip: "192.168.0.11"
+  # -
+  #   <<: *vm_defaults
+  #   :name: "util"
+  #   :hostname: "util.devopco.lcl"
+  #   :ip: "192.168.0.12"
+  #   :box: "vitals/centos-6.6"
+  #   :ram: 1024
+  #   :cpu: 1
+  # -
+  #   <<: *vm_defaults
+  #   :name: "solr"
+  #   :hostname: "solr.devopco.lcl"
+  #   :ip: "192.168.0.13"
+  #   :box: "vitals/centos-6.6"
+  #   :ram: 1024
+  #   :cpu: 1
+  # -
+  #   <<: *vm_defaults
+  #   :name: "db"
+  #   :hostname: "db.devopco.lcl"
+  #   :ip: "192.168.0.14"
+  #   :box: "vitals/centos-6.6"
+  #   :ram: 1024
+  #   :cpu: 1
+  # -
+  #   <<: *vm_defaults
+  #   :name: "mon"
+  #   :hostname: "mon.devopco.lcl"
+  #   :ip: "192.168.0.15"
+  #   :box: "vitals/centos-6.6"
+  #   :ram: 1024
+  #   :cpu: 1

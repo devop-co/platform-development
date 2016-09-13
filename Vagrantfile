@@ -6,43 +6,6 @@
 
 require 'yaml'
 require 'erb'
-
-config=YAML.load_file(File.join(__dir__,'config', 'servers.yml'))
-servers=config[:servers]
-
- Vagrant.configure(2) do |config|
-     servers.each do |machine|
-         config.vm.define machine[:name] do |node|
-             node.vm.box = machine[:box]
-             node.vm.hostname = machine[:hostname]
-             node.vm.network "private_network", :auto_network => true #ip: machine[:ip]
-             node.vm.provider "virtualbox" do |vb|
-                 vb.customize ["modifyvm", :id, "--memory", machine[:ram]]
-               end
-             node.vm.synced_folder ".", "/vagrant", disabled: true
-            #  For testing purposes, you'll need to add this to your .ssh/config
-            #  #Vagrant Testing
-            #  Host *.devopco.lcl
-            #    StrictHostKeyChecking no
-            #    UserKnownHostsFile /dev/null
-            #    IdentitiesOnly yes
-            #    User vagrant
-            #    IdentityFile ~/.ssh/vagrant_id_rsa
-             node.vm.provision "shell" do |s|
-                ssh_pub_key = File.readlines("#{Dir.home}/.ssh/vagrant_id_rsa.pub").first.strip
-                s.inline = <<-SHELL
-                  echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
-                SHELL
-              end
-             end
-           end
-         end
-
-
-#config.
-# # For initial vagrant up, run ORGANIZATION=<organization> vagrant up
-# # The repos listed in the repos.yaml will be cloned into this directory.
-# # Clones via git protocol, not https - ensure your keys are set
 # org=ENV.fetch('ORGANIZATION', nil)
 # repo=YAML.load_file('config/repos.yaml')
 # remote_repo_root=repo['remote_repo_root']
@@ -84,8 +47,43 @@ servers=config[:servers]
 #     abort "Installation of one or more plugins has failed. Aborting."
 #   end
 # end
-#
 # AutoNetwork.default_pool = '192.168.100.0/24'
+
+config=YAML.load_file(File.join(__dir__,'config', 'servers.yml'))
+servers=config[:servers]
+
+Vagrant.configure(2) do |config|
+  servers.each do |machine|
+    config.vm.define machine[:name] do |node|
+      node.vm.box = machine[:box]
+      node.vm.hostname = machine[:hostname]
+      node.vm.network "private_network", :auto_network => true
+      node.vm.provider "virtualbox" do |vb|
+        vb.customize ["modifyvm", :id, "--memory", machine[:ram]]
+      end
+      node.vm.synced_folder ".", "/vagrant", disabled: true
+      node.vm.provision "shell" do |s|
+        vars=machine[:provisioners][:shell][s][:vars]
+        # ssh_pub_key = File.readlines("#{Dir.home}/.ssh/vagrant_id_rsa.pub").first.strip
+        # s.inline = <<-SHELL
+        # echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+        # SHELL
+      end
+      node.vm.provision "shell" do |s|
+        s.inline = machine[:provisioners][:shell]
+      end
+    end
+  end
+end
+
+
+#config.
+# # For initial vagrant up, run ORGANIZATION=<organization> vagrant up
+# # The repos listed in the repos.yaml will be cloned into this directory.
+# # Clones via git protocol, not https - ensure your keys are set
+
+#
+
 # require 'config_builder'
 # Vagrant.configure('2', &ConfigBuilder.load(
 #   :yaml_erb,
