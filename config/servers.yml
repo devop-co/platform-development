@@ -1,15 +1,17 @@
 ---
 :ssh_config: &ssh_config
-      :ssh_config:
-        :vars:
-          -
-           :ssh_pub_key: <% = File.readlines("#{Dir.home}/.ssh/vagrant_id_rsa.pub").first.strip %>
-        :inline: |
-          <<-SHELL
-            echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
-          SHELL
+  :type: inline
+  :vars:
+    -
+     :ssh_pub_key: <% = File.readlines("#{Dir.home}/.ssh/vagrant_id_rsa.pub").first.strip %>
+  :script: |
+    <<-SHELL
+      echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+    SHELL
+
 :login_as_deploy: &login_as_deploy
-  :inline: |
+  :type: inline
+  :script: |
     <<-EOF
       if [ ! -f /home/vagrant/.login_as_deploy ] && id -u "deploy" >/dev/null 2>&1; then
         echo '
@@ -21,58 +23,68 @@
         echo "source .login_as_deploy" >> /home/vagrant/.bash_profile
       fi
     EOF
-:provisioners: &provisioners
-  :shell:
+
+:puppet_install: &puppet_install
+  :type: inline
+  :script: |
+    if which puppet > /dev/null 2>&1; then
+      echo 'Puppet Installed.'
+    else
+      echo 'Puppet Installation Script' &&\
+      grep -q 'rvm use system' /root/.bashrc || echo 'rvm use system 2>/dev/null' >> /root/.bashrc && \
+      rpm ivh --replacepkgs --quiet http://yum.puppetlabs.com/puppetlabs-release-el-$( rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release ) ).noarch.rpm && \
+      yum install -y -q puppet-3.8.7
+    fi
+:puppet: &puppet
+  :type: puppet
+  :puppet_facters:
+    :organization: devop-co
+    :client: devop-co
+    :env: development
+    :role: web
+    :sub_role: db
+    :puppet_environment: development
+  :puppet_paths:
+    :modules_dir: "../platform-puppet/modules"
+    :manifests_path: "../platform-puppet/manifests"
+    :manifest_file: "site.pp"
+    :hiera_config_file: "../platform-configs/hiera.yaml"
+
+:provisors: &provisors
+  :provisioners:
+    # -
+    #   <<: *ssh_config
     -
-      <<: *ssh_config
+      <<: *puppet_install
+    -
+      <<: *puppet
     -
       <<: *login_as_deploy
-
 :vm_defaults: &vm_defaults
+  :sync_rvm: true
+  :sync_apps: false
+  # :box: "devopco/centos-7-2-min"
   :box: "vitals/centos-6.6"
   :ram: 1024
-  :cpu: 1
+  :cpus: 1
+  :forward_agent: false
+  :auto_nat_dns_proxy: false
+  :natdnshostresolver1: "on"
+  :natdnsproxy1: "on"
 :servers:
   -
     <<: *vm_defaults
     :name: "web01"
     :hostname: "web01.devopco.lcl"
-    <<: *provisioners
+    <<: *provisors
 
+# Example Configurations
   # -
   #   <<: *vm_defaults
   #   :name: "web02"
   #   :hostname: "web02.devopco.lcl"
   #   :ip: "192.168.0.11"
-  # -
-  #   <<: *vm_defaults
-  #   :name: "util"
-  #   :hostname: "util.devopco.lcl"
-  #   :ip: "192.168.0.12"
-  #   :box: "vitals/centos-6.6"
-  #   :ram: 1024
-  #   :cpu: 1
-  # -
-  #   <<: *vm_defaults
-  #   :name: "solr"
-  #   :hostname: "solr.devopco.lcl"
-  #   :ip: "192.168.0.13"
-  #   :box: "vitals/centos-6.6"
-  #   :ram: 1024
-  #   :cpu: 1
-  # -
-  #   <<: *vm_defaults
-  #   :name: "db"
-  #   :hostname: "db.devopco.lcl"
-  #   :ip: "192.168.0.14"
-  #   :box: "vitals/centos-6.6"
-  #   :ram: 1024
-  #   :cpu: 1
-  # -
-  #   <<: *vm_defaults
-  #   :name: "mon"
-  #   :hostname: "mon.devopco.lcl"
-  #   :ip: "192.168.0.15"
-  #   :box: "vitals/centos-6.6"
-  #   :ram: 1024
-  #   :cpu: 1
+  #   :sync_apps: true
+  #   :apps:
+  #     - directory_name
+  #   <<: *provisioners
