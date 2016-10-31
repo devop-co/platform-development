@@ -1,6 +1,5 @@
 .vagrant
 .rvm-vagrant-sync/*
 !.rvm-vagrant-sync/.gitkeep
-config/*.yaml
 
 
