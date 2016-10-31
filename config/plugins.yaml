@@ -1,6 +1,5 @@
 plugins:
   default:
-   - vagrant-config_builder
    - vagrant-auto_network
    - vagrant-hosts
    - vagrant-share

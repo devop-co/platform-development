@@ -5,10 +5,31 @@ require 'yaml'
 # Set Constants
 ROOT_DIR = '.'
 
+# For initial vagrant up, run ORGANIZATION=<organization> vagrant up
+# The repos listed in the repos.yaml will be cloned into this directory.
+# Clones via git protocol, not https - ensure your keys are set
+# This is currently written and tested with Github in mind TODO: make more extensible
+org = ENV.fetch('ORGANIZATION', nil)
+repo = YAML.load_file('config/repos.yaml')
+remote_repo_root = repo['remote_repo_root']
+org_root = ( repo['shared']['org_root'] if org.nil?) || repo[org.downcase]['org_root']
+repos = ( repo['shared']['repos'] if org.nil?) || repo[org.downcase]['repos']+repo['shared']['repos']
+puts "Organization is "+ (ENV['ORGANIZATION'] || "not set")
+if ARGV[-1] == "up"
+  repos.each do |d|
+    unless Dir.exists?(File.join('..',"#{d}"))
+      repo_check=Dir.exists?(File.join('..',"#{d}"))
+      puts "Checking if repo already exists #{repo_check}"
+      puts "cloning #{d}...."
+      puts `git clone #{remote_repo_root}:#{org_root}/#{d}.git ../#{d}`
+    end
+  end
+end
+
 # Load Settings and Configurations
-plugins=YAML.load_file('config/plugins.yaml')
-plugins_to_install = plugins['plugins']['default'] + plugins['plugins']['user']
-plugins_to_install.select { |plugin| not Vagrant.has_plugin? plugin }
+plugins = YAML.load_file('config/plugins.yaml')
+required_plugins = plugins['plugins']['default'] + plugins['plugins']['user']
+plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
 if not plugins_to_install.empty?
   p "Installing plugins: #{plugins_to_install.join(' ')}"
   if system "vagrant plugin install #{plugins_to_install.join(' ')}"
@@ -29,8 +50,8 @@ end
 
 AutoNetwork.default_pool = '192.168.100.0/24'
 
-config=YAML.load_file(File.join(__dir__,'config', 'servers.yml'))
-servers=config[:servers]
+config = YAML.load_file(File.join(__dir__,'config', 'servers.yml'))
+servers = config[:servers]
 
 Vagrant.configure(2) do |config|
   servers.each do |machine|
