@@ -7,20 +7,8 @@ ROOT_DIR = '.'
 
 # Load Settings and Configurations
 plugins=YAML.load_file('config/plugins.yaml')
-
-required_plugins = plugins['plugins']['default']
-plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
-if not plugins_to_install.empty?
-  p "Installing plugins: #{plugins_to_install.join(' ')}"
-  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
-    exec "vagrant #{ARGV.join(' ')}"
-  else
-    abort "Installation of one or more plugins has failed. Aborting."
-  end
-end
-
-user_plugins = plugins['plugins']['user']
-plugins_to_install = user_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
+plugins_to_install = plugins['plugins']['default'] + plugins['plugins']['user']
+plugins_to_install.select { |plugin| not Vagrant.has_plugin? plugin }
 if not plugins_to_install.empty?
   p "Installing plugins: #{plugins_to_install.join(' ')}"
   if system "vagrant plugin install #{plugins_to_install.join(' ')}"
